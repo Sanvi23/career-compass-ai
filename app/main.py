@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 import os
 from pdfminer.high_level import extract_text
 from docx import Document
@@ -34,7 +34,21 @@ def home():
 
 @app.post("/upload-resume")
 async def upload_resume(file: UploadFile = File(...)):
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
+
+    allowed_extensions = [".pdf", ".docx"]
+
+    if not any(file.filename.endswith(ext)
+               for ext in allowed_extensions):
+
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF and DOCX files allowed"
+        )
+
+    file_path = os.path.join(
+        UPLOAD_DIR,
+        file.filename
+    )
 
     with open(file_path, "wb") as buffer:
         buffer.write(await file.read())
