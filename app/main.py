@@ -3,7 +3,13 @@ import os
 from pdfminer.high_level import extract_text
 from docx import Document
 from pydantic import BaseModel
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
+logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Career Compass AI",
     description="""
@@ -32,10 +38,12 @@ def extract_resume_text(file_path: str):
 def home():
     return {"message": "Career Compass AI running"}
 
+
 class ResumeResponse(BaseModel):
     filename: str
     extracted_text: str
     message: str
+
 
 @app.post("/upload-resume", response_model=ResumeResponse)
 async def upload_resume(file: UploadFile = File(...)):
@@ -58,14 +66,14 @@ async def upload_resume(file: UploadFile = File(...)):
             status_code=400,
             detail="File too large. Maximum size: 5MB"
         )
-
+    logger.info("Uploading file: %s", file.filename)
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
     with open(file_path, "wb") as buffer:
         buffer.write(content)
 
     text = extract_resume_text(file_path)
-
+    logger.info("Processed file successfully: %s", file.filename)
     return ResumeResponse(
         filename=file.filename,
         extracted_text=text[:1000],
