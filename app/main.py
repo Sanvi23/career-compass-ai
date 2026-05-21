@@ -45,13 +45,23 @@ async def upload_resume(file: UploadFile = File(...)):
             detail="Only PDF and DOCX files allowed"
         )
 
+    content = await file.read()
+
+    max_size = 5 * 1024 * 1024   # 5 MB
+
+    if len(content) > max_size:
+        raise HTTPException(
+            status_code=400,
+            detail="File too large. Maximum size: 5MB"
+        )
+
     file_path = os.path.join(
         UPLOAD_DIR,
         file.filename
     )
 
     with open(file_path, "wb") as buffer:
-        buffer.write(await file.read())
+        buffer.write(content)
 
     text = extract_resume_text(file_path)
 
