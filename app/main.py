@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 import os
 from pdfminer.high_level import extract_text
 from docx import Document
+from pydantic import BaseModel
 
 app = FastAPI(
     title="Career Compass AI",
@@ -31,15 +32,18 @@ def extract_resume_text(file_path: str):
 def home():
     return {"message": "Career Compass AI running"}
 
+class ResumeResponse(BaseModel):
+    filename: str
+    extracted_text: str
+    message: str
 
-@app.post("/upload-resume")
+@app.post("/upload-resume", response_model=ResumeResponse)
 async def upload_resume(file: UploadFile = File(...)):
 
     allowed_extensions = [".pdf", ".docx"]
 
     if not any(file.filename.endswith(ext)
                for ext in allowed_extensions):
-
         raise HTTPException(
             status_code=400,
             detail="Only PDF and DOCX files allowed"
@@ -47,7 +51,7 @@ async def upload_resume(file: UploadFile = File(...)):
 
     content = await file.read()
 
-    max_size = 5 * 1024 * 1024   # 5 MB
+    max_size = 5 * 1024 * 1024  # 5MB
 
     if len(content) > max_size:
         raise HTTPException(
@@ -55,17 +59,15 @@ async def upload_resume(file: UploadFile = File(...)):
             detail="File too large. Maximum size: 5MB"
         )
 
-    file_path = os.path.join(
-        UPLOAD_DIR,
-        file.filename
-    )
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
 
     with open(file_path, "wb") as buffer:
         buffer.write(content)
 
     text = extract_resume_text(file_path)
 
-    return {
-        "filename": file.filename,
-        "extracted_text": text[:1000]
-    }
+    return ResumeResponse(
+        filename=file.filename,
+        extracted_text=text[:1000],
+        message="Resume processed successfully"
+    )
