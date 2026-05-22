@@ -3,6 +3,8 @@ import os
 from pdfminer.high_level import extract_text
 from docx import Document
 from pydantic import BaseModel
+from app.skill_extractor import extract_skills
+from typing import List
 import logging
 logging.basicConfig(
     level=logging.INFO,
@@ -42,6 +44,7 @@ def home():
 class ResumeResponse(BaseModel):
     filename: str
     extracted_text: str
+    skills: List[str]
     message: str
 
 
@@ -73,9 +76,11 @@ async def upload_resume(file: UploadFile = File(...)):
         buffer.write(content)
 
     text = extract_resume_text(file_path)
+    skills = extract_skills(text)
     logger.info("Processed file successfully: %s", file.filename)
     return ResumeResponse(
         filename=file.filename,
         extracted_text=text[:1000],
+        skills=skills,
         message="Resume processed successfully"
     )
