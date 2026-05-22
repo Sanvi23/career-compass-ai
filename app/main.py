@@ -1,3 +1,5 @@
+import logging
+from app.database import SessionLocal
 from fastapi import FastAPI, UploadFile, File, HTTPException
 import os
 from pdfminer.high_level import extract_text
@@ -6,7 +8,10 @@ from pydantic import BaseModel
 from app.skill_extractor import extract_skills
 from typing import List
 from app.job_matcher import calculate_match
-import logging
+from app.database import engine
+from app.models import Resume
+from app.database import Base, engine
+Base.metadata.create_all(bind=engine)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
@@ -21,7 +26,7 @@ analyze skills and match jobs.
 """,
     version="0.1.0"
 )
-
+Resume.metadata.create_all(bind=engine)
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -47,6 +52,8 @@ class ResumeResponse(BaseModel):
     extracted_text: str
     skills: List[str]
     message: str
+
+
 class JobMatchRequest(BaseModel):
     resume_text: str
     job_description: str
@@ -56,6 +63,7 @@ class JobMatchResponse(BaseModel):
     score: int
     matched: list[str]
     missing: list[str]
+
 
 @app.post("/upload-resume", response_model=ResumeResponse)
 async def upload_resume(file: UploadFile = File(...)):
@@ -87,12 +95,27 @@ async def upload_resume(file: UploadFile = File(...)):
     text = extract_resume_text(file_path)
     skills = extract_skills(text)
     logger.info("Processed file successfully: %s", file.filename)
+    db = SessionLocal()
+
+    resume_record = Resume(
+        filename=file.filename,
+        extracted_text=text[:1000],
+        skills=",".join(skills)
+    )
+
+    db.add(resume_record)
+
+    db.commit()
+
+    db.close()
     return ResumeResponse(
         filename=file.filename,
         extracted_text=text[:1000],
         skills=skills,
         message="Resume processed successfully"
     )
+
+
 @app.post(
     "/match-job",
     response_model=JobMatchResponse
