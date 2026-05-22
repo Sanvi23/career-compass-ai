@@ -1,7 +1,7 @@
-from fastapi.testclient import TestClient
+import fastapi.testclient
 from app.main import app
 
-client = TestClient(app)
+client = fastapi.testclient.TestClient(app)
 
 
 def test_home():
