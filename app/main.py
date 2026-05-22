@@ -5,6 +5,7 @@ from docx import Document
 from pydantic import BaseModel
 from app.skill_extractor import extract_skills
 from typing import List
+from app.job_matcher import calculate_match
 import logging
 logging.basicConfig(
     level=logging.INFO,
@@ -46,7 +47,15 @@ class ResumeResponse(BaseModel):
     extracted_text: str
     skills: List[str]
     message: str
+class JobMatchRequest(BaseModel):
+    resume_text: str
+    job_description: str
 
+
+class JobMatchResponse(BaseModel):
+    score: int
+    matched: list[str]
+    missing: list[str]
 
 @app.post("/upload-resume", response_model=ResumeResponse)
 async def upload_resume(file: UploadFile = File(...)):
@@ -83,4 +92,21 @@ async def upload_resume(file: UploadFile = File(...)):
         extracted_text=text[:1000],
         skills=skills,
         message="Resume processed successfully"
+    )
+@app.post(
+    "/match-job",
+    response_model=JobMatchResponse
+)
+def match_job(
+        request: JobMatchRequest):
+
+    result = calculate_match(
+        request.resume_text,
+        request.job_description
+    )
+
+    return JobMatchResponse(
+        score=result["score"],
+        matched=result["matched"],
+        missing=result["missing"]
     )
